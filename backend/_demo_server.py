@@ -17,7 +17,10 @@ _cors_origins = os.getenv("CORS_ORIGINS", "")
 _ALLOWED_ORIGINS = (
     [o.strip() for o in _cors_origins.split(",") if o.strip()]
     if _cors_origins
-    else ["*"]
+    else [
+        "https://ctplkdotcom.github.io",
+        "http://localhost:3000",
+    ]
 )
 
 app.add_middleware(
