@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 import { formatPrice, getDirectionColor } from '@/lib/utils';
 
@@ -148,7 +149,7 @@ export default function HomePage() {
           {data.watchlist?.items?.map((item: any) => {
             const dc = confidence[item.ticker];
             return (
-              <a key={item.ticker} href={`/analysis?ticker=${item.ticker}`} style={{
+              <Link key={item.ticker} href={`/analysis?ticker=${item.ticker}`} style={{
                 textDecoration: 'none',
                 padding: 16,
                 background: 'var(--bg-card)',
@@ -191,12 +192,12 @@ export default function HomePage() {
                     </span>
                   </div>
                 )}
-              </a>
+              </Link>
             );
           })}
           {(!data.watchlist?.items || data.watchlist.items.length === 0) && (
             <p style={{ color: 'var(--text-muted)', gridColumn: '1 / -1' }}>
-              No tickers in watchlist. <a href="/watchlist" style={{ color: 'var(--color-info)' }}>Add tickers</a>
+              No tickers in watchlist. <Link href="/watchlist" style={{ color: 'var(--color-info)' }}>Add tickers</Link>
             </p>
           )}
         </div>

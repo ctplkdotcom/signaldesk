@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 import { formatPrice, getDirectionColor, formatDate } from '@/lib/utils';
 
@@ -31,7 +32,7 @@ export default function DashboardPage() {
       <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Watchlist</h2>
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
         {data.watchlist?.items?.map((item: any) => (
-          <a key={item.ticker} href={`/analysis?ticker=${item.ticker}`} style={{
+          <Link key={item.ticker} href={`/analysis?ticker=${item.ticker}`} style={{
             textDecoration: 'none', padding: 16,
             background: 'var(--bg-card)', borderRadius: 8, border: '1px solid var(--border-color)',
           }}>
@@ -42,7 +43,7 @@ export default function DashboardPage() {
             <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
               {item.session} · {item.health_status}
             </div>
-          </a>
+          </Link>
         ))}
       </div>
     </div>

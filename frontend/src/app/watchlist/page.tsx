@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 import { formatPrice, formatDate, getDirectionColor, getHealthColor } from '@/lib/utils';
 
@@ -105,11 +106,11 @@ export default function WatchlistPage() {
               {items.map((item: any) => (
                 <tr key={item.ticker}>
                   <td>
-                    <a href={`/analysis?ticker=${item.ticker}`} style={{
+                    <Link href={`/analysis?ticker=${item.ticker}`} style={{
                       fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none',
                     }}>
                       {item.ticker}
-                    </a>
+                    </Link>
                   </td>
                   <td style={{ color: 'var(--text-secondary)' }}>{item.name}</td>
                   <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-muted)' }}>

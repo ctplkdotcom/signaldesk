@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import '@/styles/globals.css';
 
 export const metadata: Metadata = {
@@ -32,7 +33,7 @@ function Nav() {
       top: 0,
       zIndex: 100,
     }}>
-      <a href="/" style={{
+      <Link href="/" style={{
         fontSize: 20,
         fontWeight: 700,
         color: 'var(--text-primary)',
@@ -40,7 +41,7 @@ function Nav() {
         textDecoration: 'none',
       }}>
         Signal Desk
-      </a>
+      </Link>
       <div style={{ display: 'flex', gap: 4, marginLeft: 32, overflowX: 'auto' }}>
         <NavLink href="/dashboard">Dashboard</NavLink>
         <NavLink href="/watchlist">Watchlist</NavLink>
@@ -57,7 +58,7 @@ function Nav() {
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <a
+    <Link
       href={href}
       className="nav-link"
       style={{
@@ -71,6 +72,6 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
       }}
     >
       {children}
-    </a>
+    </Link>
   );
 }
