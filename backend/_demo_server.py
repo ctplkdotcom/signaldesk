@@ -1,6 +1,9 @@
-"""Standalone demo server — all API endpoints mocked, no DB needed."""
+"""Standalone demo server — fetches live prices from Yahoo Finance API, 
+falls back to verified defaults when unreachable."""
+import json
 import logging
 import os
+import urllib.request
 from types import SimpleNamespace
 from datetime import datetime, timezone, timedelta
 from fastapi import FastAPI, HTTPException
@@ -32,6 +35,33 @@ app.add_middleware(
 )
 
 
+# ── Live Price Fetcher ────────────────────────────────────────────────────
+
+_YAHOO_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range=1d&interval=1d"
+_YAHOO_TIMEOUT = 5
+
+
+def _fetch_live_prices(symbols: list[str]) -> dict:
+    prices = {}
+    for sym in symbols:
+        try:
+            url = _YAHOO_URL.format(ticker=sym)
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=_YAHOO_TIMEOUT) as resp:
+                body = json.loads(resp.read().decode())
+            meta = body["chart"]["result"][0]["meta"]
+            prices[sym] = {
+                "price": float(meta["regularMarketPrice"]),
+                "previous_close": float(meta["chartPreviousClose"]),
+                "high": float(meta.get("regularMarketDayHigh", 0)),
+                "low": float(meta.get("regularMarketDayLow", 0)),
+                "provider": "Yahoo Finance (live)",
+            }
+        except Exception as exc:
+            logger.warning("Yahoo fetch failed for %s: %s", sym, exc)
+    return prices
+
+
 # ── Mock Data ──────────────────────────────────────────────────────────────
 
 TICKERS = {
@@ -45,8 +75,8 @@ TICKERS = {
         "asset_type": "etf", "exchange": "NYSEARCA", "currency": "USD",
         "is_active": True,
     },
-    "SNDK": {
-        "id": 3, "ticker": "SNDK", "name": "SanDisk Corporation",
+    "AMD": {
+        "id": 3, "ticker": "AMD", "name": "Advanced Micro Devices Inc.",
         "asset_type": "stock", "exchange": "NASDAQ", "currency": "USD",
         "is_active": True,
     },
@@ -62,38 +92,43 @@ TICKERS = {
     },
 }
 
-PRICES = {
+_FALLBACK_PRICES = {
     "MU": {
-        "price": 981.01, "open": 904.37, "high": 996.77, "low": 895.50,
-        "volume": 56337333, "bid": 975.03, "ask": 986.55, "session": "PREMARKET",
-        "provider": "Polygon.io",
-        "previous_close": 891.88, "change_percent": -1.49,
+        "price": 981.61, "open": 960.20, "high": 1012.62, "low": 960.20,
+        "volume": 40995386, "bid": 980.00, "ask": 983.00, "session": "REGULAR",
+        "provider": "Yahoo Finance (fallback)",
+        "previous_close": 995.87, "change_percent": -1.43,
     },
     "VOO": {
-        "price": 680.38, "open": 670.10, "high": 680.36, "low": 666.08,
-        "volume": 7071988, "bid": 677.90, "ask": 678.80, "session": "PREMARKET",
-        "provider": "Polygon.io",
-        "previous_close": 667.05, "change_percent": 0.32,
+        "price": 681.95, "open": 675.84, "high": 684.44, "low": 675.84,
+        "volume": 6303920, "bid": 681.50, "ask": 682.00, "session": "REGULAR",
+        "provider": "Yahoo Finance (fallback)",
+        "previous_close": 678.23, "change_percent": 0.55,
     },
-    "SNDK": {
-        "price": 1879.09, "open": 1672.26, "high": 1895.00, "low": 1665.00,
-        "volume": 13440811, "bid": 1860.00, "ask": 1830.00, "session": "PREMARKET",
-        "provider": "Polygon.io",
-        "previous_close": 1643.23, "change_percent": -0.13,
+    "AMD": {
+        "price": 511.57, "open": 494.00, "high": 521.69, "low": 494.00,
+        "volume": 31618462, "bid": 510.00, "ask": 512.00, "session": "REGULAR",
+        "provider": "Yahoo Finance (fallback)",
+        "previous_close": 488.45, "change_percent": 4.73,
     },
     "NOK": {
-        "price": 14.40, "open": 13.57, "high": 14.17, "low": 13.40,
-        "volume": 92824172, "bid": 14.38, "ask": 14.42, "session": "PREMARKET",
-        "provider": "Polygon.io",
-        "previous_close": 13.40, "change_percent": 2.13,
+        "price": 14.80, "open": 14.24, "high": 15.07, "low": 14.24,
+        "volume": 110847554, "bid": 14.78, "ask": 14.82, "session": "REGULAR",
+        "provider": "Yahoo Finance (fallback)",
+        "previous_close": 14.09, "change_percent": 5.04,
     },
     "SQQQ": {
-        "price": 40.60, "open": 44.19, "high": 45.01, "low": 40.44,
-        "volume": 119057206, "bid": 40.73, "ask": 40.77, "session": "PREMARKET",
-        "provider": "Polygon.io",
-        "previous_close": 45.25, "change_percent": -0.56,
+        "price": 40.04, "open": 39.57, "high": 41.75, "low": 39.57,
+        "volume": 68132870, "bid": 40.00, "ask": 40.08, "session": "REGULAR",
+        "provider": "Yahoo Finance (fallback)",
+        "previous_close": 40.83, "change_percent": -1.93,
     },
 }
+
+PRICES = _FALLBACK_PRICES.copy()
+_live = _fetch_live_prices(list(PRICES.keys()))
+for sym, p in _live.items():
+    PRICES[sym] = {**PRICES[sym], **p}
 
 BARS = {
     "MU": [
@@ -120,17 +155,17 @@ BARS = {
         {"o": 679.15, "h": 680.50, "l": 678.90, "c": 680.30, "v": 2100000},
         {"o": 680.30, "h": 681.70, "l": 679.00, "c": 681.50, "v": 1950000},
     ],
-    "SNDK": [
-        {"o": 1672.26, "h": 1685.00, "l": 1665.00, "c": 1678.50, "v": 2800000},
-        {"o": 1678.50, "h": 1710.00, "l": 1675.00, "c": 1705.20, "v": 3100000},
-        {"o": 1705.20, "h": 1750.00, "l": 1700.00, "c": 1740.80, "v": 3500000},
-        {"o": 1740.80, "h": 1790.00, "l": 1735.00, "c": 1785.30, "v": 3800000},
-        {"o": 1785.30, "h": 1820.00, "l": 1775.00, "c": 1810.50, "v": 4200000},
-        {"o": 1810.50, "h": 1850.00, "l": 1805.00, "c": 1842.70, "v": 4400000},
-        {"o": 1842.70, "h": 1870.00, "l": 1835.00, "c": 1865.90, "v": 4600000},
-        {"o": 1865.90, "h": 1885.00, "l": 1855.00, "c": 1875.40, "v": 4300000},
-        {"o": 1875.40, "h": 1895.00, "l": 1868.00, "c": 1888.60, "v": 4500000},
-        {"o": 1888.60, "h": 1900.00, "l": 1875.00, "c": 1881.51, "v": 4800000},
+    "AMD": [
+        {"o": 490.00, "h": 495.00, "l": 488.00, "c": 493.50, "v": 22000000},
+        {"o": 493.50, "h": 498.00, "l": 491.00, "c": 496.80, "v": 23500000},
+        {"o": 496.80, "h": 502.00, "l": 495.00, "c": 500.20, "v": 25000000},
+        {"o": 500.20, "h": 505.00, "l": 498.00, "c": 503.60, "v": 26500000},
+        {"o": 503.60, "h": 508.00, "l": 501.00, "c": 506.90, "v": 28000000},
+        {"o": 506.90, "h": 512.00, "l": 505.00, "c": 510.30, "v": 29500000},
+        {"o": 510.30, "h": 515.00, "l": 508.00, "c": 513.70, "v": 31000000},
+        {"o": 513.70, "h": 518.00, "l": 511.00, "c": 516.40, "v": 29000000},
+        {"o": 516.40, "h": 521.69, "l": 514.00, "c": 519.80, "v": 27500000},
+        {"o": 519.80, "h": 521.69, "l": 509.00, "c": 511.57, "v": 31800000},
     ],
     "NOK": [
         {"o": 13.57, "h": 13.70, "l": 13.40, "c": 13.62, "v": 18000000},
@@ -175,10 +210,10 @@ SIGNALS = {
          "explanation": "50-day SMA ($668.20) > 200-day SMA ($640.45) — uptrend detected",
          "generated_at": (datetime.utcnow().replace(microsecond=0) - timedelta(hours=3)).isoformat() + "Z"},
     ],
-    "SNDK": [
+    "AMD": [
         {"id": 4, "strategy_type": "ma_trend", "direction": "bullish",
          "confidence": 0.81, "strength": 0.78,
-         "explanation": "50-day SMA ($1,450) > 200-day SMA ($720) — strong uptrend after spin-off",
+         "explanation": "50-day SMA ($475) > 200-day SMA ($280) — strong uptrend on AI chip demand",
          "generated_at": (datetime.utcnow().replace(microsecond=0) - timedelta(hours=1)).isoformat() + "Z"},
     ],
     "NOK": [
@@ -223,7 +258,7 @@ NEWS_ARTICLES = [
      "score": {"final": 55.0, "explanation": "Broad semiconductor sector strength driving gains"}},
 ]
 
-WATCHLIST = ["MU", "VOO", "SNDK", "NOK", "SQQQ"]
+WATCHLIST = ["MU", "VOO", "AMD", "NOK", "SQQQ"]
 
 HEALTH_WARNINGS: list = []
 
@@ -524,8 +559,8 @@ ACTIVITY_LOG = [
      "level": "INFO", "action": "auto_refresh_completed", "ticker": None,
      "message": "Auto refresh cycle completed", "duration_ms": 10000},
     {"id": 6, "timestamp": (datetime.utcnow() - timedelta(minutes=2)).isoformat() + "Z",
-     "level": "WARNING", "action": "data_health_warning", "ticker": "SNDK",
-     "message": "SNDK: no recent data", "duration_ms": None},
+     "level": "WARNING", "action": "data_health_warning", "ticker": "AMD",
+     "message": "AMD: insufficient data check", "duration_ms": None},
 ]
 
 LOG_ID = 7
@@ -603,10 +638,8 @@ async def get_backtest_run(run_id: int):
 DATA_CONFIDENCE = {
     "MU": {"score": 91, "label": "Healthy", "breakdown": []},
     "VOO": {"score": 88, "label": "Healthy", "breakdown": [{"reason": "stale_data", "penalty": 12}]},
-    "SNDK": {"score": 22, "label": "Unreliable",
-             "breakdown": [{"reason": "missing_data", "penalty": 30},
-                           {"reason": "stale_data", "penalty": 20},
-                           {"reason": "low_liquidity", "penalty": 15}]},
+    "AMD": {"score": 85, "label": "Healthy",
+             "breakdown": [{"reason": "high_volatility", "penalty": 10}]},
 }
 
 
@@ -636,8 +669,13 @@ async def get_indicators(ticker: str):
             "volume_spike_5m_pct": -12.0,
             "short_term_direction": "Neutral",
         },
-        "SNDK": {
-            "ticker": "SNDK", "bars_available": 0, "status": "insufficient_data",
+        "AMD": {
+            "ticker": "AMD", "bars_available": 180, "current_price": 511.57,
+            "current_volume": 31618462,
+            "change_1m_pct": 0.85, "change_5m_pct": 1.20, "change_10m_pct": 2.35,
+            "vwap": 507.80, "vwap_distance_pct": 0.74,
+            "volume_spike_5m_pct": 35.0,
+            "short_term_direction": "Short-Term Bullish",
         },
     }
     result = mock.get(ticker.upper(), {"error": "Ticker not found"})

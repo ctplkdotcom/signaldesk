@@ -49,9 +49,9 @@ try {
     if ($muD.overall_direction -notin @("bullish","bearish","neutral")) { throw "Decision-summary: invalid direction $($muD.overall_direction)" }
     Write-Step "  OK — direction=$($muD.overall_direction) confidence=$($muD.composite_confidence)"
 
-    Write-Step "Testing /api/v1/tickers/SNDK/price..."
-    $sndk = Invoke-RestMethod -Uri "${base}/api/v1/tickers/SNDK/price" -ErrorAction Stop
-    Write-Step "  OK — price=$($sndk.price) session=$($sndk.session)"
+    Write-Step "Testing /api/v1/tickers/AMD/price..."
+    $amd = Invoke-RestMethod -Uri "${base}/api/v1/tickers/AMD/price" -ErrorAction Stop
+    Write-Step "  OK — price=$($amd.price) session=$($amd.session)"
 
     Write-Step "Testing /api/v1/dashboard..."
     $dash = Invoke-RestMethod -Uri "${base}/api/v1/dashboard" -ErrorAction Stop

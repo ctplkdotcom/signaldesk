@@ -56,7 +56,7 @@ class TestBuildDecisionSummarySignal:
 
     def test_low_confidence_downgrades_overall(self):
         result = _build_decision_summary(
-            ticker="SNDK",
+            ticker="AMD",
             signal_obj=_signal("bullish", 0.3),
             health=_health("healthy"),
         )

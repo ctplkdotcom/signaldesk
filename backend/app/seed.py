@@ -36,6 +36,17 @@ INITIAL_TICKERS = [
             "note": "Acquired by Western Digital in 2016. Historical data only.",
         },
     },
+    {
+        "ticker": "AMD",
+        "name": "Advanced Micro Devices Inc.",
+        "asset_type": "stock",
+        "exchange": "NASDAQ",
+        "is_active": True,
+        "first_traded": "1980-03-17",
+        "provider_mappings": {
+            "polygon": "AMD",
+        },
+    },
 ]
 
 METHODOLOGIES = [
