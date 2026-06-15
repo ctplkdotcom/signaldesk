@@ -6,6 +6,22 @@ Stock analysis, news scoring, and signal generation for US equities.
 
 ---
 
+## Deployment
+
+| Component | Host | URL |
+|-----------|------|-----|
+| Frontend | GitHub Pages | `https://ctplkdotcom.github.io/signaldesk/` |
+| Backend API | PythonAnywhere (free tier) | `https://YOUR_USERNAME.pythonanywhere.com` |
+
+**Workflow:** Push to `main` → GitHub Actions auto-deploys frontend to GitHub Pages and triggers a PythonAnywhere web app reload. See [`.github/workflows/`](.github/workflows/) for details.
+
+**Setup steps:**
+1. **GitHub Pages** — repo → Settings → Pages → set Source to "GitHub Actions"
+2. **Repository variable** — set `NEXT_PUBLIC_API_URL` to your PythonAnywhere URL
+3. **PythonAnywhere** — sign up, create a web app (Manual config → Python 3.11), set source to `signaldesk/backend`, virtualenv to `signaldesk/backend/venv`, ASGI app to `asgi.py`
+
+---
+
 ## Implementation Status
 
 | Area | Status |
