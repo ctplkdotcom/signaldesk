@@ -8,15 +8,95 @@ on:
       - '.github/workflows/deploy-backend.yml'
   workflow_dispatch:
 
+env:
+  PA_HOST: "www.pythonanywhere.com"
+
 jobs:
-  reload:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r test-requirements.txt
+
+      - name: Run tests
+        run: pytest -v --tb=short
+
+  deploy:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Reload PythonAnywhere web app
+      - name: Deploy to PythonAnywhere
+        env:
+          PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
+          PA_USERNAME: ${{ secrets.PA_USERNAME }}
         run: |
+          DOMAIN="${PA_USERNAME}.pythonanywhere.com"
+          API_BASE="https://${PA_HOST}/api/v1/user/${PA_USERNAME}"
+
+          # 1. Create a Bash console on PA
+          echo "--- Creating PA console ---"
+          CONSOLE_RESPONSE=$(curl -s -X POST \
+            "${API_BASE}/consoles/" \
+            -H "Authorization: Token ${PA_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"executable": "bash", "working_directory": "/home/'"${PA_USERNAME}"'/fp"}')
+          CONSOLE_ID=$(echo "$CONSOLE_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))")
+
+          if [ -z "$CONSOLE_ID" ]; then
+            echo "ERROR: Failed to create console. Response: $CONSOLE_RESPONSE"
+            exit 1
+          fi
+          echo "Console ID: $CONSOLE_ID"
+
+          # 2. Send git pull
+          echo "--- Pulling latest code ---"
+          sleep 2
           curl -s -X POST \
-            "https://www.pythonanywhere.com/api/v0/user/${{ secrets.PA_USERNAME }}/webapps/${{ secrets.PA_USERNAME }}.pythonanywhere.com/reload/" \
-            -H "Authorization: Token ${{ secrets.PA_API_TOKEN }}"
-        continue-on-error: true
+            "https://www.pythonanywhere.com/api/v0/user/${PA_USERNAME}/consoles/${CONSOLE_ID}/send_input/" \
+            -H "Authorization: Token ${PA_API_TOKEN}" \
+            --data-urlencode "input=cd ~/fp && git pull\n"
+
+          # 3. Install deps
+          sleep 4
+          echo "--- Installing dependencies ---"
+          curl -s -X POST \
+            "https://www.pythonanywhere.com/api/v0/user/${PA_USERNAME}/consoles/${CONSOLE_ID}/send_input/" \
+            -H "Authorization: Token ${PA_API_TOKEN}" \
+            --data-urlencode "input=cd ~/fp/backend && source venv/bin/activate && pip install -r requirements.txt -q\n"
+
+          # 4. Reload the ASGI website
+          sleep 6
+          echo "--- Reloading web app ---"
+          RELOAD_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            "${API_BASE}/websites/${DOMAIN}/reload" \
+            -H "Authorization: Token ${PA_API_TOKEN}")
+          echo "Reload HTTP status: $RELOAD_RESPONSE"
+
+          # 5. Health check
+          sleep 3
+          echo "--- Health check ---"
+          HEALTH=$(curl -s -o /dev/null -w "%{http_code}" "https://${DOMAIN}/healthz")
+          echo "Health endpoint status: $HEALTH"
+
+          if [ "$HEALTH" = "200" ]; then
+            echo "✅ Deployment successful!"
+          else
+            echo "⚠️  Deploy might need manual verification"
+          fi

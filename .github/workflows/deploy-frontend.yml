@@ -42,7 +42,7 @@ jobs:
       - name: Build static site
         run: npm run build
         env:
-          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'https://YOUR_USERNAME.pythonanywhere.com' }}
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || secrets.NEXT_PUBLIC_API_URL || 'https://YOUR_USERNAME.pythonanywhere.com' }}
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
