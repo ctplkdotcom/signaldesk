@@ -1,0 +1,19 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "references": {
+    "signaldesk": {
+      "repository": "ctplkdotcom/signaldesk",
+      "description": "Use for Signal Desk GitHub repo context (issues, PRs, releases)"
+    }
+  },
+  "mcp": {
+    "github": {
+      "type": "local",
+      "command": ["npx", "-y", "@github/github-mcp-server"],
+      "enabled": true,
+      "env": {
+        "GITHUB_TOKEN": "{env:GITHUB_TOKEN}"
+      }
+    }
+  }
+}
