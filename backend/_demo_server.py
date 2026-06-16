@@ -268,8 +268,43 @@ HEALTH_WARNINGS: list = []
 def _now_utc():
     return datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
 
+_TICKER_ID_COUNTER = 6
+
+
+def _ensure_price(ticker: str) -> dict | None:
+    t = ticker.upper()
+    if t in PRICES:
+        return PRICES[t]
+    live = _fetch_live_prices([t])
+    if t in live:
+        price = live[t]
+        default_open = round(price["price"] * 0.98, 2)
+        price.setdefault("open", default_open)
+        price.setdefault("volume", 0)
+        price.setdefault("bid", None)
+        price.setdefault("ask", None)
+        price.setdefault("session", "REGULAR")
+        PRICES[t] = price
+    else:
+        PRICES[t] = {
+            "price": None, "open": None, "high": None, "low": None,
+            "volume": 0, "bid": None, "ask": None, "session": "NONE",
+            "provider": "Yahoo Finance (unavailable)",
+            "previous_close": None,
+        }
+    if t not in TICKERS:
+        global _TICKER_ID_COUNTER
+        TICKERS[t] = {
+            "id": _TICKER_ID_COUNTER, "ticker": t, "name": t,
+            "asset_type": "stock", "exchange": "NASDAQ", "currency": "USD",
+            "is_active": True,
+        }
+        _TICKER_ID_COUNTER += 1
+    return PRICES[t]
+
+
 def _price_for(ticker: str):
-    return PRICES.get(ticker.upper())
+    return _ensure_price(ticker.upper())
 
 def _signal_for(ticker: str):
     sigs = SIGNALS.get(ticker.upper(), [])
@@ -461,7 +496,7 @@ async def get_watchlist():
     items = []
     for sym in WATCHLIST:
         t = TICKERS.get(sym)
-        p = PRICES.get(sym)
+        p = PRICES.get(sym) or _ensure_price(sym)
         h = _health_for(sym)
         s = _signal_for(sym)
         now = _now_utc()
@@ -482,6 +517,7 @@ async def add_to_watchlist(ticker: str):
     t = ticker.upper()
     if t not in WATCHLIST:
         WATCHLIST.append(t)
+    _ensure_price(t)  # auto-fetch live price so it shows immediately
     logger.info("added %s to watchlist", t)
     return {"status": "ok", "ticker": t}
 
